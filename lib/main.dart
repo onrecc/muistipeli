@@ -1,0 +1,314 @@
+import 'package:flutter/material.dart';
+import 'package:muistipeli/help.dart';
+import 'game.dart';
+import 'dart:math';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Memory Match',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      home: const GridSelectionPage(),
+    );
+  }
+}
+
+class GridSelectionPage extends StatefulWidget {
+  const GridSelectionPage({super.key});
+
+  @override
+  State<GridSelectionPage> createState() => _GridSelectionPageState();
+}
+
+class _GridSelectionPageState extends State<GridSelectionPage> {
+  void _startGame(BuildContext context, int rows, int cols) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CardMatchingGame(rows: rows, cols: cols),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+    final double screenWidth = screenSize.width;
+    final double screenHeight = screenSize.height;
+    final bool isLandscape = screenWidth > screenHeight;
+    const background = Color(0xFF4E4A73);
+
+    // account for system UI insets (status bar, notch, navigation)
+    final EdgeInsets padding = MediaQuery.of(context).padding;
+    final double safeHeight = screenHeight - padding.top - padding.bottom;
+
+    // Landscape layout: full-width grid with no padding or spacing
+    if (isLandscape) {
+      // horizontal margin for grid
+      final double hPad = screenWidth * 0.05;
+      // reserve extra room at top (for help button) and bottom (for labels)
+      final double topPad = screenHeight * 0.10;
+      final double bottomPad = 0;
+      const double gap = 16;
+      // compute usable grid area
+      final double gridW = screenWidth - 2 * hPad;
+      final double gridH = safeHeight - topPad;
+      // each cell size (2 columns)
+      final double cellW = (gridW - gap) / 2;
+      final double cellH = (gridH - gap) / 2;
+
+      return Scaffold(
+        backgroundColor: background,
+        body: SafeArea(
+          child: Stack(
+            children: <Widget>[
+              // HELP BUTTON
+              Positioned(
+                top: screenHeight * 0.02,
+                left: screenWidth * 0.04,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white24,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.help_outline, color: Colors.white),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => HelpPage(),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              // Landscape grid (no padding/spacing)
+              Positioned.fill(
+                top: topPad,
+                bottom: 0,
+                left: hPad,
+                right: hPad,
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: gap,
+                  crossAxisSpacing: gap,
+                  childAspectRatio: cellW / cellH,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildOptionCard(context: context, cols: 2, rows: 4, locked: false),
+                    _buildOptionCard(context: context, cols: 3, rows: 4, locked: false),
+                    _buildOptionCard(context: context, cols: 3, rows: 6, locked: true),
+                    _buildOptionCard(context: context, cols: 4, rows: 6, locked: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Portrait layout: stacked cards
+    return Scaffold(
+      backgroundColor: background,
+      body: SafeArea(
+        child: Stack(
+          children: <Widget>[
+            // HELP BUTTON
+            Positioned(
+              top: screenHeight * 0.02,
+              left: screenWidth * 0.04,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white24,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.help_outline, color: Colors.white),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => HelpPage(),
+                    );
+                  },
+                ),
+              ),
+            ),
+            // EASY: 2×4
+            Positioned(
+              top: screenHeight * 0.05,
+              right: screenWidth * 0.07,
+              child: _buildOptionCard(context: context, cols: 2, rows: 4, locked: false),
+            ),
+            // MEDIUM: 3×4
+            Positioned(
+              top: screenHeight * 0.25,
+              left: screenWidth * 0.07,
+              child: _buildOptionCard(context: context, cols: 3, rows: 4, locked: false),
+            ),
+            // EXPERT: 3×6 (locked)
+            Positioned(
+              top: screenHeight * 0.45,
+              right: screenWidth * 0.07,
+              child: _buildOptionCard(context: context, cols: 3, rows: 6, locked: true),
+            ),
+            // HARD: 4×6 (locked)
+            Positioned(
+              top: screenHeight * 0.65,
+              left: screenWidth * 0.07,
+              child: _buildOptionCard(context: context, cols: 4, rows: 6, locked: true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionCard({
+    required BuildContext context,
+    required int cols,
+    required int rows,
+    required bool locked,
+  }) {
+    final Size screenSize = MediaQuery.of(context).size;
+    final bool isLandscape = screenSize.width > screenSize.height;
+    // horizontal margin around each card
+    final double sideMargin = screenSize.width * 0.02;
+    // Portrait card size
+    final double portraitCardW = screenSize.width * 0.35;
+    final double portraitCardH = screenSize.height * 0.25;
+    // In landscape, let the card fill its grid cell; in portrait, use fixed size
+    final double cardW = isLandscape ? double.infinity : portraitCardW;
+    final double cardH = isLandscape ? double.infinity : portraitCardH;
+
+    return GestureDetector(
+      onTap: locked ? null : () => _startGame(context, rows, cols),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: sideMargin),
+        child: Center(
+          child: Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            Container(
+              width: cardW,
+              height: cardH,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Remove internal vertical padding in landscape
+                  final double innerVertPad = isLandscape ? 0 : 24;
+                  const double internalSpacing = 4;
+                  final double availW = constraints.maxWidth;
+                  final double availH = constraints.maxHeight - innerVertPad;
+                  final double totalWSpacing = internalSpacing * (cols - 1);
+                  final double totalHSpacing = internalSpacing * (rows - 1);
+                  final double sqW = (availW - totalWSpacing) / cols;
+                  final double sqH = (availH - totalHSpacing) / rows;
+                  final double squareSize = min(sqW, sqH);
+                  final double spacing = internalSpacing;
+
+                  return Padding(
+                    padding: isLandscape
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.symmetric(vertical: 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (int r = 0; r < rows; r++) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              for (int c = 0; c < cols; c++) ...[
+                                Container(
+                                  width: squareSize,
+                                  height: squareSize,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEEEEEE),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                if (c < cols - 1) SizedBox(width: internalSpacing),
+                              ],
+                            ],
+                          ),
+                          if (r < rows - 1) SizedBox(height: internalSpacing),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (locked) ...[
+              Container(
+                width: cardW,
+                height: cardH,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              Positioned.fill(
+                child: Center(
+                  child: Icon(
+                    Icons.lock_outline,
+                    size: 32,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9F4D9),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Text(
+                    '$cols×$rows',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4E4A73),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        ),
+      ),
+    );
+  }
+}
