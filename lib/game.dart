@@ -2,6 +2,83 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'dart:async';
 
+// A widget that flips between front and back with a 3D rotation.
+class FlipCard extends StatefulWidget {
+  final Widget front;
+  final Widget back;
+  final bool flipOn;
+  final Duration duration;
+
+  const FlipCard({
+    Key? key,
+    required this.front,
+    required this.back,
+    required this.flipOn,
+    this.duration = const Duration(milliseconds: 500),
+  }) : super(key: key);
+
+  @override
+  _FlipCardState createState() => _FlipCardState();
+}
+
+class _FlipCardState extends State<FlipCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    if (widget.flipOn) {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant FlipCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.flipOn != oldWidget.flipOn) {
+      if (widget.flipOn) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final angle = _controller.value * pi;
+        final transform = Matrix4.identity()
+          ..setEntry(3, 2, 0.001)
+          ..rotateY(angle);
+        // Show back until halfway, then show front flipped 180°
+        Widget displayChild = _controller.value <= 0.5
+            ? widget.back
+            : Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.rotationY(pi),
+                child: widget.front,
+              );
+        return Transform(
+          transform: transform,
+          alignment: Alignment.center,
+          child: displayChild,
+        );
+      },
+    );
+  }
+}
+
 class CardMatchingGame extends StatefulWidget {
   final int rows;
   final int cols;
@@ -129,22 +206,105 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
   }
 
   void _showGameWonDialog() {
-    showDialog(
+    // Stop the stopwatch and timer so they don’t keep running
+    _stopwatch.stop();
+    _timer.cancel();
+
+    // Calculate how many stars to award
+    final int secs = _stopwatch.elapsed.inSeconds;
+    const int threeStarThreshold = 30;
+    const int twoStarThreshold = 60;
+    final int stars = (secs <= threeStarThreshold)
+        ? 3
+        : (secs <= twoStarThreshold)
+        ? 2
+        : 1;
+
+    showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Congratulations!'),
-        content: Text('You won in ${_formatTime(_elapsedTime)}!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _initializeGame();
-            },
-            child: const Text('Play Again'),
+      barrierColor: Colors.black54, // dim background
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (ctx, anim1, anim2) {
+        final size = MediaQuery.of(ctx).size;
+        return Container(
+          width: size.width * 0.9, // 90% of screen width
+          height: size.height * 0.7, // 70% of screen height
+          alignment: Alignment.center,
+          child: Container(
+            padding: const EdgeInsets.all(32), // Increased padding
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24), // Larger border radius
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(3, (i) {
+                    return Transform.rotate(
+                      angle: (i - 1) * 0.2,
+                      child: Icon(
+                        Icons.star,
+                        size: 80, // Larger stars
+                        color: i < stars ? Colors.amber : Colors.grey[400],
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 24), // Increased spacing
+                Text(
+                  'Time: ${_formatTime(_elapsedTime)}',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 32, // Larger font size
+                  ),
+                ),
+                const SizedBox(height: 32), // Increased spacing
+                Container(
+                  padding: const EdgeInsets.all(32), // Increased padding
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: const Color(0xFF9DA2CD),
+                      width: 3, // Thicker border
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      24,
+                    ), // Larger border radius
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // close dialog
+                      Navigator.of(context).pop(); // exit game screen
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(32), // Increased padding
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          16,
+                        ), // Larger border radius
+                      ),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      size: 80,
+                    ), // Larger icon
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
+      transitionBuilder: (ctx, anim1, anim2, child) {
+        return FadeTransition(
+          opacity: anim1,
+          child: ScaleTransition(scale: anim1, child: child),
+        );
+      },
     );
   }
 
@@ -152,67 +312,102 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4E4A73),
+        backgroundColor: const Color(0xFFe7eaf6),
         elevation: 0,
         centerTitle: true,
         toolbarHeight: 60,
         title: Text(
           _formatTime(_elapsedTime),
           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
+            color: Colors.black54,
+            fontSize: 48,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // Calculate available space accounting for app bar and system UI
-          final padding = 16.0 * 2;
-          final availableHeight = constraints.maxHeight - padding;
+      body: OrientationBuilder(
+        builder: (context, orientation) {
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final double padding = 16.0;
+              final double availableWidth =
+                  constraints.maxWidth - (padding * 2);
+              final double availableHeight =
+                  constraints.maxHeight - kToolbarHeight - (padding * 2);
 
-          // Calculate card size based on both width and height constraints
-          final maxCardWidth =
-              (constraints.maxWidth - 32.0 - (8.0 * (widget.cols - 1))) /
-              widget.cols;
-          final maxCardHeight =
-              (availableHeight - (8.0 * (widget.rows - 1))) / widget.rows;
+              bool isLandscape = orientation == Orientation.landscape;
+              int displayCols = isLandscape ? widget.rows : widget.cols;
+              int displayRows = isLandscape ? widget.cols : widget.rows;
 
-          // Choose the smaller card size to ensure it fits both dimensions
-          final cardSize = min(maxCardWidth, maxCardHeight * 0.8);
-          final cardWidth = cardSize;
-          final cardHeight = cardSize / 0.8;
+              double cardWidth, cardHeight;
+              const double aspectRatio =
+                  3 / 4; // Width to height ratio of cards
 
-          // Calculate total grid dimensions
-          final gridWidth =
-              (cardWidth * widget.cols) + (8.0 * (widget.cols - 1));
-          final gridHeight =
-              (cardHeight * widget.rows) + (8.0 * (widget.rows - 1));
+              // Calculate card size based on available space
+              cardWidth =
+                  (availableWidth - (8.0 * (displayCols - 1))) / displayCols;
+              cardHeight = cardWidth / aspectRatio;
 
-          return Container(
-            color: const Color(0xFF4E4A73),
-            padding: const EdgeInsets.all(16.0),
-            child: Center(
-              child: SizedBox(
-                width: gridWidth,
-                height: gridHeight,
-                child: GridView.count(
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: widget.cols,
-                  crossAxisSpacing: 8.0,
-                  mainAxisSpacing: 8.0,
-                  childAspectRatio: 0.8,
-                  children: List.generate(
-                    cards.length,
-                    (index) => _buildCard(index),
+              // If cards are too tall, adjust based on height
+              if ((cardHeight * displayRows) + (8.0 * (displayRows - 1)) >
+                  availableHeight) {
+                cardHeight =
+                    (availableHeight - (8.0 * (displayRows - 1))) / displayRows;
+                cardWidth = cardHeight * aspectRatio;
+              }
+
+              // Calculate total grid dimensions
+              final gridWidth =
+                  (cardWidth * displayCols) + (8.0 * (displayCols - 1));
+              final gridHeight =
+                  (cardHeight * displayRows) + (8.0 * (displayRows - 1));
+
+              return Container(
+                color: const Color(0xFFe7eaf6),
+                padding: EdgeInsets.all(padding),
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: SizedBox(
+                      width: gridWidth,
+                      height: gridHeight,
+                      child: GridView.count(
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: displayCols,
+                        crossAxisSpacing: 8.0,
+                        mainAxisSpacing: 8.0,
+                        childAspectRatio: cardWidth / cardHeight,
+                        children: isLandscape
+                            ? _getLandscapeCardOrder()
+                            : List.generate(
+                                cards.length,
+                                (index) => _buildCard(index),
+                              ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
     );
+  }
+
+  List<Widget> _getLandscapeCardOrder() {
+    List<Widget> reorderedCards = [];
+    int originalCols = widget.cols;
+    int originalRows = widget.rows;
+
+    // Transpose the grid by swapping rows and columns
+    for (int row = 0; row < originalRows; row++) {
+      for (int col = 0; col < originalCols; col++) {
+        int originalIndex = row * originalCols + col;
+        reorderedCards.add(_buildCard(originalIndex));
+      }
+    }
+
+    return reorderedCards;
   }
 
   Widget _buildCard(int index) {
@@ -221,31 +416,11 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
 
     return GestureDetector(
       onTap: () => _onCardTap(index),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          final rotateAnim = Tween(begin: pi / 2, end: 0.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-          );
-
-          return AnimatedBuilder(
-            animation: rotateAnim,
-            child: child,
-            builder: (context, child) {
-              return Transform(
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateY(rotateAnim.value),
-                alignment: Alignment.center,
-                child: child,
-              );
-            },
-          );
-        },
-        child: Container(
-          key: ValueKey<bool>(isFaceUp), // Important: Unique key for animation
-          child: isFaceUp ? _buildCardFront(card) : _buildCardBack(),
-        ),
+      child: FlipCard(
+        front: _buildCardFront(card),
+        back: _buildCardBack(),
+        flipOn: isFaceUp,
+        duration: const Duration(milliseconds: 500),
       ),
     );
   }
@@ -253,8 +428,9 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
   Widget _buildCardFront(CardModel card) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.0),
+        color: const Color(0xFFffe684),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: const Color(0xFF4e5180), width: 6),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -264,7 +440,17 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
         ],
       ),
       child: Center(
-        child: Icon(Icons.star, size: 40, color: _getCardColor(card.value)),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double halfWidth = constraints.maxWidth * 0.5;
+            return Image.asset(
+              'lib/images/${card.value + 1}.png',
+              width: halfWidth,
+              height: halfWidth * 1.33, // maintain aspect ratio
+              fit: BoxFit.contain,
+            );
+          },
+        ),
       ),
     );
   }
@@ -272,8 +458,9 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
   Widget _buildCardBack() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.blue[800],
-        borderRadius: BorderRadius.circular(8.0),
+        color: const Color(0xFF9da2cd),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: const Color(0xFF4e5180), width: 6),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -284,26 +471,12 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
       ),
       child: Center(
         child: Icon(
-          Icons.question_mark,
+          Icons.star_rounded,
           size: 40,
-          color: Colors.white.withOpacity(0.7),
+          color: const Color(0xFFfecc4f),
         ),
       ),
     );
-  }
-
-  Color _getCardColor(int value) {
-    final colors = [
-      Colors.red,
-      Colors.green,
-      Colors.blue,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.amber,
-    ];
-    return colors[value % colors.length];
   }
 }
 
