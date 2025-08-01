@@ -105,11 +105,20 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
       _stopwatch.reset();
       _elapsedTime = Duration.zero;
       final totalPairs = (widget.rows * widget.cols) ~/ 2;
-      final cardValues = List.generate(totalPairs, (index) => index);
+      
+      // Create a list of all available image IDs (1-24)
+      final List<int> availableImages = List.generate(24, (index) => index);
+      
+      // Shuffle and pick random images for this game
+      availableImages.shuffle(Random());
+      final List<int> selectedImages = availableImages.take(totalPairs).toList();
+      
+      // Create card pairs with the randomly selected images
       cards = [
-        ...cardValues,
-        ...cardValues,
+        ...selectedImages,
+        ...selectedImages,
       ].map((value) => CardModel(value: value)).toList()..shuffle(Random());
+      
       selectedIndex = null;
       previouslySelectedIndex = null;
       matchedPairs = 0;
@@ -167,20 +176,26 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
         moves++;
 
         if (cards[selectedIndex!].value == cards[index].value) {
-          // Match found
-          cards[selectedIndex!] = cards[selectedIndex!].copyWith(
-            isMatched: true,
-          );
-          cards[index] = cards[index].copyWith(isMatched: true);
-          matchedPairs++;
+          // Match found - let players see the match briefly before disappearing
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (mounted) {
+              setState(() {
+                cards[selectedIndex!] = cards[selectedIndex!].copyWith(
+                  isMatched: true,
+                );
+                cards[index] = cards[index].copyWith(isMatched: true);
+                matchedPairs++;
 
-          // Check if game is won
-          if (matchedPairs == (widget.rows * widget.cols) ~/ 2) {
-            _showGameWonDialog();
-          }
+                // Check if game is won
+                if (matchedPairs == (widget.rows * widget.cols) ~/ 2) {
+                  _showGameWonDialog();
+                }
 
-          selectedIndex = null;
-          isProcessing = false;
+                selectedIndex = null;
+                isProcessing = false;
+              });
+            }
+          });
         } else {
           // No match
           previouslySelectedIndex = selectedIndex;
@@ -242,51 +257,57 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(3, (i) {
-                    return Transform.rotate(
-                      angle: (i - 1) * 0.2,
-                      child: Icon(
-                        Icons.star,
-                        size: 80, // Larger stars
-                        color: i < stars ? Colors.amber : Colors.grey[400],
+                    return Transform.translate(
+                      offset: i == 1 ? Offset(0, -20) : Offset.zero, // Raise middle star
+                      child: Transform.rotate(
+                        angle: (i - 1) * 0.2,
+                        child: Image(
+                          image: AssetImage('lib/images/star.png'),
+                          width: 60, 
+                          height: 60,
+                          color: i < stars ? Colors.amber : Colors.grey[400],
+                        ),
                       ),
                     );
                   }),
                 ),
                 const SizedBox(height: 24), // Increased spacing
-                Text(
-                  'Time: ${_formatTime(_elapsedTime)}',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 32, // Larger font size
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFfff1ba),
+                    borderRadius: BorderRadius.circular(100), // Max corner rounding
+                    border: Border.all(
+                      color: const Color(0xFF9da2cd),
+                      width: 6,
+                    ),
+                  ),
+                  child: Text(
+                    _formatTime(_elapsedTime),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF4E5180),
+                      fontSize: 48, // Larger font size
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32), // Increased spacing
                 Container(
                   padding: const EdgeInsets.all(32), // Increased padding
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFF9DA2CD),
-                      width: 3, // Thicker border
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      24,
-                    ), // Larger border radius
-                  ),
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).pop(); // close dialog
                       Navigator.of(context).pop(); // exit game screen
                     },
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(32), // Increased padding
+                      padding: const EdgeInsets.all(16), // Increased padding
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(
-                          16,
+                          100,
                         ), // Larger border radius
                       ),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
+                      backgroundColor: Color(0xFF4e5180),
+                      foregroundColor: Color(0xFFFFFFFF),
                     ),
                     child: const Icon(
                       Icons.arrow_back,
@@ -310,87 +331,154 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFe7eaf6),
-        elevation: 0,
-        centerTitle: true,
-        toolbarHeight: 60,
-        title: Text(
-          _formatTime(_elapsedTime),
-          style: const TextStyle(
-            color: Colors.black54,
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: OrientationBuilder(
-        builder: (context, orientation) {
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final double padding = 16.0;
-              final double availableWidth =
-                  constraints.maxWidth - (padding * 2);
-              final double availableHeight =
-                  constraints.maxHeight - kToolbarHeight - (padding * 2);
-
-              bool isLandscape = orientation == Orientation.landscape;
-              int displayCols = isLandscape ? widget.rows : widget.cols;
-              int displayRows = isLandscape ? widget.cols : widget.rows;
-
-              double cardWidth, cardHeight;
-              const double aspectRatio =
-                  3 / 4; // Width to height ratio of cards
-
-              // Calculate card size based on available space
-              cardWidth =
-                  (availableWidth - (8.0 * (displayCols - 1))) / displayCols;
-              cardHeight = cardWidth / aspectRatio;
-
-              // If cards are too tall, adjust based on height
-              if ((cardHeight * displayRows) + (8.0 * (displayRows - 1)) >
-                  availableHeight) {
-                cardHeight =
-                    (availableHeight - (8.0 * (displayRows - 1))) / displayRows;
-                cardWidth = cardHeight * aspectRatio;
-              }
-
-              // Calculate total grid dimensions
-              final gridWidth =
-                  (cardWidth * displayCols) + (8.0 * (displayCols - 1));
-              final gridHeight =
-                  (cardHeight * displayRows) + (8.0 * (displayRows - 1));
-
-              return Container(
-                color: const Color(0xFFe7eaf6),
-                padding: EdgeInsets.all(padding),
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: SizedBox(
-                      width: gridWidth,
-                      height: gridHeight,
-                      child: GridView.count(
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: displayCols,
-                        crossAxisSpacing: 8.0,
-                        mainAxisSpacing: 8.0,
-                        childAspectRatio: cardWidth / cardHeight,
-                        children: isLandscape
-                            ? _getLandscapeCardOrder()
-                            : List.generate(
-                                cards.length,
-                                (index) => _buildCard(index),
+    return OrientationBuilder(
+      builder: (context, orientation) {
+        bool isLandscape = orientation == Orientation.landscape;
+        
+        if (isLandscape) {
+          // Landscape layout: clock on left, game on right, no AppBar
+          return Scaffold(
+            backgroundColor: const Color(0xFFe7eaf6), // Set scaffold background
+            body: Container(
+              color: const Color(0xFFe7eaf6), // Ensure full background coverage
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    // Left side: Clock and back button
+                    Container(
+                      width: 120, // Fixed width for clock area
+                      color: const Color(0xFFe7eaf6),
+                      child: Stack(
+                        children: [
+                          // Back button in top left
+                          Positioned(
+                            top: 16,
+                            left: 16,
+                            child: GestureDetector(
+                              onTap: () => Navigator.of(context).pop(),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFF9DA2CD),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back,
+                                  size: 40,
+                                  color: Color(0xFF4E4A73),
+                                ),
                               ),
+                            ),
+                          ),
+                          // Clock in center
+                          Center(
+                            child: Text(
+                              _formatTime(_elapsedTime),
+                              style: const TextStyle(
+                                color: Colors.black54,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+                    // Right side: Game area
+                    Expanded(
+                      child: _buildGameArea(true), // true for landscape
+                    ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           );
-        },
-      ),
+        } else {
+          // Portrait layout: Keep original AppBar design
+          return Scaffold(
+            appBar: AppBar(
+              backgroundColor: const Color(0xFFe7eaf6),
+              elevation: 0,
+              centerTitle: true,
+              toolbarHeight: 60,
+              title: Text(
+                _formatTime(_elapsedTime),
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            body: _buildGameArea(false), // false for portrait
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildGameArea(bool isLandscape) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double padding = 4.0; // Even smaller padding
+        final double availableWidth = constraints.maxWidth - (padding * 2);
+        final double availableHeight = constraints.maxHeight - (padding * 2);
+
+        int displayCols = isLandscape ? widget.rows : widget.cols;
+        int displayRows = isLandscape ? widget.cols : widget.rows;
+
+        double cardWidth, cardHeight;
+        final double aspectRatio = 1.0;
+
+        final double spacing = 3.0;
+
+        // Calculate card size based on available space
+        cardWidth =
+            (availableWidth - (spacing * (displayCols - 1))) / displayCols;
+        cardHeight = cardWidth / aspectRatio;
+
+        // If cards are too tall, adjust based on height
+        if ((cardHeight * displayRows) + (spacing * (displayRows - 1)) >
+            availableHeight) {
+          cardHeight =
+              (availableHeight - (spacing * (displayRows - 1))) / displayRows;
+          cardWidth = cardHeight * aspectRatio;
+        }
+
+        // Calculate total grid dimensions
+        final gridWidth =
+            (cardWidth * displayCols) + (spacing * (displayCols - 1));
+        final gridHeight =
+            (cardHeight * displayRows) + (spacing * (displayRows - 1));
+
+        return Container(
+          color: const Color(0xFFe7eaf6),
+          padding: EdgeInsets.zero, // Remove all padding
+          child: Center(
+            child: SizedBox(
+              width: gridWidth,
+              height: gridHeight,
+              child: GridView.count(
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: displayCols,
+                crossAxisSpacing: spacing, // Use dynamic spacing
+                mainAxisSpacing: spacing, // Use dynamic spacing
+                childAspectRatio: cardWidth / cardHeight,
+                children: isLandscape
+                    ? _getLandscapeCardOrder()
+                    : List.generate(
+                        cards.length,
+                        (index) => _buildCard(index),
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -416,11 +504,29 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
 
     return GestureDetector(
       onTap: () => _onCardTap(index),
-      child: FlipCard(
-        front: _buildCardFront(card),
-        back: _buildCardBack(),
-        flipOn: isFaceUp,
-        duration: const Duration(milliseconds: 500),
+      child: AnimatedScale(
+        scale: card.isMatched ? 0.0 : 1.0,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInBack,
+        child: AnimatedOpacity(
+          opacity: card.isMatched ? 0.0 : 1.0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOut,
+          child: card.isMatched 
+            ? Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFffe684).withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(19),
+                  border: Border.all(color: const Color(0xFF4e5180).withOpacity(0.3), width: 6),
+                ),
+              )
+            : FlipCard(
+                front: _buildCardFront(card),
+                back: _buildCardBack(),
+                flipOn: isFaceUp,
+                duration: const Duration(milliseconds: 500),
+              ),
+        ),
       ),
     );
   }
@@ -442,11 +548,14 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
       child: Center(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final double halfWidth = constraints.maxWidth * 0.5;
+            // For square cards, use the smaller dimension as reference
+            final double cardSize = min(constraints.maxWidth, constraints.maxHeight);
+            final double imageSize = cardSize * 0.7; // Use 70% of card size for image
+            
             return Image.asset(
               'lib/images/${card.value + 1}.png',
-              width: halfWidth,
-              height: halfWidth * 1.33, // maintain aspect ratio
+              width: imageSize,
+              height: imageSize,
               fit: BoxFit.contain,
             );
           },
@@ -470,10 +579,17 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
         ],
       ),
       child: Center(
-        child: Icon(
-          Icons.star_rounded,
-          size: 40,
-          color: const Color(0xFFfecc4f),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Scale icon size based on card size - much larger calculation
+            final double iconSize = (constraints.maxWidth + constraints.maxHeight) * 0.25; // Much larger multiplier
+            return Image(
+              image: AssetImage('lib/images/star.png'),
+              width: iconSize.clamp(10.0, 40.0),
+              height: iconSize.clamp(10.0, 40.0),
+              color: const Color(0xFFfecc4f),
+            );
+          },
         ),
       ),
     );

@@ -1,4 +1,4 @@
-package com.example.muistipeli
+package fi.digihappy.muistipeli
 
 import io.flutter.embedding.android.FlutterActivity
 
