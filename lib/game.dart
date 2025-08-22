@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
 import 'dart:async';
 
@@ -105,9 +106,9 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
       _stopwatch.reset();
       _elapsedTime = Duration.zero;
       final totalPairs = (widget.rows * widget.cols) ~/ 2;
-      
-      // Create a list of all available image IDs (1-24)
-      final List<int> availableImages = List.generate(24, (index) => index);
+
+      // Create a list of all available image IDs (1-35)
+      final List<int> availableImages = List.generate(35, (index) => index);
       
       // Shuffle and pick random images for this game
       availableImages.shuffle(Random());
@@ -309,9 +310,10 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
                       backgroundColor: Color(0xFF4e5180),
                       foregroundColor: Color(0xFFFFFFFF),
                     ),
-                    child: const Icon(
-                      Icons.arrow_back,
-                      size: 80,
+                    child: const Image(
+                      image: AssetImage('lib/icons/back1.png'),
+                      width: 80,
+                      height: 80,
                     ), // Larger icon
                   ),
                 ),
@@ -356,21 +358,10 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
                             left: 16,
                             child: GestureDetector(
                               onTap: () => Navigator.of(context).pop(),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFF9DA2CD),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back,
-                                  size: 40,
-                                  color: Color(0xFF4E4A73),
-                                ),
+                              child: const Image(
+                                image: AssetImage('lib/icons/back.png'),
+                                width: 56,
+                                height: 56,
                               ),
                             ),
                           ),
@@ -378,7 +369,7 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
                           Center(
                             child: Text(
                               _formatTime(_elapsedTime),
-                              style: const TextStyle(
+                              style: GoogleFonts.poppins(
                                 color: Colors.black54,
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
@@ -407,7 +398,7 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
               toolbarHeight: 60,
               title: Text(
                 _formatTime(_elapsedTime),
-                style: const TextStyle(
+                style: GoogleFonts.poppins(
                   color: Colors.black54,
                   fontSize: 48,
                   fontWeight: FontWeight.bold,

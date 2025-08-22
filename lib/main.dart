@@ -57,6 +57,7 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
   bool _isFullVersion = false;
   bool _isLoading = true;
   bool _isPurchasing = false;
+  bool _hasShownPurchaseSuccessMessage = false; // Track if we've shown the success message
   SharedPreferences? _prefs;
   
   // Payment service for IAP
@@ -87,12 +88,17 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
         });
         // Update SharedPreferences to maintain compatibility
         _prefs?.setBool('isFullVersion', true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Purchase successful! All levels unlocked.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        
+        // Only show success message if we haven't shown it before (i.e., it's a new purchase)
+        if (!_hasShownPurchaseSuccessMessage) {
+          _hasShownPurchaseSuccessMessage = true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Purchase successful! All levels unlocked.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     };
 
@@ -136,6 +142,8 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
         // Sync with SharedPreferences
         if (_paymentService.isUnlockAllPurchased) {
           _prefs?.setBool('isFullVersion', true);
+          // Mark that we've already shown the success message to prevent it on startup
+          _hasShownPurchaseSuccessMessage = true;
         }
       }
     } catch (e) {
@@ -342,22 +350,10 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
                     alignment: Alignment.topRight,
                     child: GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFfefefd),
-                          borderRadius: BorderRadius.circular(95),
-                          border: Border.all(
-                            color: const Color(0xFF9DA2CD),
-                            width: 4,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.close,
-                          weight: 800,
-                          color: const Color(0xFF4E4A73),
-                          size: iconSize,
-                        ),
+                      child: Image(
+                        image: AssetImage('lib/icons/close.png'),
+                        width: iconSize,
+                        height: iconSize,
                       ),
                     ),
                   ),
@@ -509,19 +505,17 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
               Positioned(
                 top: screenHeight * 0.02,
                 left: screenWidth * 0.04,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white24,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.help_outline, color: Colors.white),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => HelpPage()),
-                      );
-                    },
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => HelpPage()),
+                    );
+                  },
+                  child: const Image(
+                    image: AssetImage('lib/icons/Q-mark.png'),
+                    width: 40,
+                    height: 40,
                   ),
                 ),
               ),
@@ -598,19 +592,17 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
             Positioned(
               top: screenHeight * 0.02,
               left: screenWidth * 0.04,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white24,
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.help_outline, color: Colors.white),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => HelpPage(),
-                    );
-                  },
+              child: GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => HelpPage(),
+                  );
+                },
+                child: const Image(
+                  image: AssetImage('lib/icons/Q-mark.png'),
+                  width: 40,
+                  height: 40,
                 ),
               ),
             ),
@@ -743,22 +735,30 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    // Device size categories for responsive scaling
                     final bool isTablet = screenSize.shortestSide >= 600;
                     final bool isLargePhone = screenSize.shortestSide >= 400;
                     
-                    // Reserve space for the size tag at the bottom
-                    final double sizeTagHeight = 60; // Fixed height for size tag area
+                    final double sizeTagHeight = 60;
                     final double innerVertPad = isLandscape ? 0 : 24;
                     
-                    // Scale internal spacing based on grid complexity and device size
                     final double gridComplexity = (cols * rows).toDouble();
                     final double baseInternalSpacing = isTablet ? 4.0 : 3.5; // Reduce base spacing on tablets
-                    final double spacingScale = gridComplexity > 12 ? 0.4 : (gridComplexity > 8 ? 0.6 : 1.0); // More aggressive spacing reduction for large grids
+                    
+                    double spacingScale;
+                    if (gridComplexity == 12) { // 3x4
+                      spacingScale = 0.7; 
+                    } else if (gridComplexity == 18) { // 3x6
+                      spacingScale = 0.65; 
+                    } else if (gridComplexity == 24) { // 4x6
+                      spacingScale = 0.65;
+                    } else {
+                      spacingScale = gridComplexity > 12 ? 0.4 : (gridComplexity > 8 ? 0.6 : 1.0); 
+                    }
+                    
                     final double internalSpacing = baseInternalSpacing * spacingScale;
                     
                     final double availW = constraints.maxWidth;
-                    final double availH = constraints.maxHeight - innerVertPad - sizeTagHeight; // Reserve space for tag
+                    final double availH = constraints.maxHeight - innerVertPad - sizeTagHeight;
                     final double totalWSpacing = internalSpacing * (cols - 1);
                     final double totalHSpacing = internalSpacing * (rows - 1);
                     final double sqW = (availW - totalWSpacing) / cols;
@@ -770,7 +770,19 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
                       (isTablet ? 0.22 : 0.25) : // Landscape: bigger on tablets too
                       (isTablet ? 0.20 : 0.22); // Portrait: bigger base percentages
                     final double containerBasedSize = min(availW, availH) * baseContainerPercentage * deviceScale;
-                    final double complexityFactor = 1.0 - (gridComplexity - 8) * 0.035; // Slightly less aggressive scaling
+                    
+                    // Adjust complexity factor to make all difficulties more similar in size
+                    double complexityFactor;
+                    if (gridComplexity == 12) { // 3x4
+                      complexityFactor = 0.90; // Increase from 0.88 to make cards bigger
+                    } else if (gridComplexity == 18) { // 3x6
+                      complexityFactor = 0.94; // Make 3x6 cards bigger too
+                    } else if (gridComplexity == 24) { // 4x6 - hardest difficulty
+                      complexityFactor = 0.93; // Make hardest difficulty cards even bigger and more consistent
+                    } else {
+                      complexityFactor = 1.0 - (gridComplexity - 8) * 0.035; // Original calculation for other layouts
+                    }
+                    
                     final double adjustedContainerSize = containerBasedSize * complexityFactor.clamp(0.4, 1.0);
                     final double squareSize = min(min(sqW, sqH), adjustedContainerSize);
                     
@@ -779,9 +791,21 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
                     final double baseBorderWidth = isTablet ? 5.0 : 3.0; // Higher base values for tablets
                     final double baseReference = containerBasedSize * 0.75; // More appropriate reference size
                     final double scaleFactor = (squareSize / baseReference).clamp(0.4, 1.5); // Allow more range
-                    final double largeGridReduction = gridComplexity > 12 ? (isTablet ? 0.8 : 0.6) : 1.0; // Less reduction on tablets for large grids
-                    final double borderRadius = (baseBorderRadius * scaleFactor * largeGridReduction).clamp(2.0, 15.0);
-                    final double borderWidth = (baseBorderWidth * scaleFactor * largeGridReduction).clamp(1.5, 6.0);
+                    
+                    // Adjust border styling to be more consistent between all difficulties
+                    double borderStyleReduction;
+                    if (gridComplexity == 12) { // 3x4
+                      borderStyleReduction = 0.9; // Slight reduction
+                    } else if (gridComplexity == 18) { // 3x6
+                      borderStyleReduction = 0.87; // Similar to 3x4, instead of the previous 0.6-0.8
+                    } else if (gridComplexity == 24) { // 4x6 - hardest difficulty
+                      borderStyleReduction = 0.83; // Bigger borders and rounding for hardest difficulty
+                    } else {
+                      borderStyleReduction = gridComplexity > 12 ? (isTablet ? 0.8 : 0.6) : 1.0; // Original logic for other layouts
+                    }
+                    
+                    final double borderRadius = (baseBorderRadius * scaleFactor * borderStyleReduction).clamp(2.0, 15.0);
+                    final double borderWidth = (baseBorderWidth * scaleFactor * borderStyleReduction).clamp(1.5, 6.0);
 
                     Widget grid = Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -813,11 +837,6 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
                       ],
                     );
 
-                    // Don't rotate cards in landscape anymore - keep them vertical
-                    // if (isLandscape) {
-                    //   grid = RotatedBox(quarterTurns: 1, child: grid);
-                    // }
-
                     return Padding(
                       padding: isLandscape
                           ? EdgeInsets.zero
@@ -835,7 +854,7 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF9F4D9),
+                              color: const Color(0xFFfff1ba),
                               borderRadius: BorderRadius.circular(95),
                               border: Border.all(
                                 color: const Color(0xFF9DA2CD),
@@ -844,10 +863,10 @@ class _GridSelectionPageState extends State<GridSelectionPage> {
                             ),
                             child: Text(
                               '$cols×$rows',
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 fontSize: 36,
                                 letterSpacing: 3,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                                 color: Color(0xFF4E4A73),
                               ),
                             ),

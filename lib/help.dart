@@ -21,21 +21,10 @@ class HelpPage extends StatelessWidget {
                 right: 16,
                 child: GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF9DA2CD),
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      size: 24,
-                      color: Color(0xFF4E4A73),
-                    ),
+                  child: const Image(
+                    image: AssetImage('lib/icons/close.png'),
+                    width: 32,
+                    height: 32,
                   ),
                 ),
               ),
@@ -78,7 +67,7 @@ class HelpPage extends StatelessWidget {
                             icon: Icons.info_outline,
                             title: 'About us',
                             onTap: () async {
-                              const urlString = 'https://digihappy.fi';
+                              const urlString = 'https://en.digihappy.fi';
                               try {
                                 final url = Uri.parse(urlString);
                                 
@@ -140,16 +129,61 @@ class HelpPage extends StatelessWidget {
                           const SizedBox(height: 16),
                           _buildMenuItem(
                             context,
-                            icon: Icons.description,
+                            icon: Icons.privacy_tip_outlined,
                             title: 'Terms and Conditions',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const PlaceholderPage(title: 'Terms and Conditions'),
-                                ),
-                              );
+                            onTap: () async {
+                              const urlString = 'https://en.digihappy.fi/palveluehdot#memory-game-privacy';
+                              try {
+                                final url = Uri.parse(urlString);
+                                
+                                bool launched = false;
+                                
+                                try {
+                                  launched = await launchUrl(
+                                    url,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                } catch (e) {
+                                  launched = false;
+                                }
+                                
+                                if (!launched) {
+                                  try {
+                                    launched = await launchUrl(
+                                      url,
+                                      mode: LaunchMode.platformDefault,
+                                    );
+                                  } catch (e) {
+                                    launched = false;
+                                  }
+                                }
+                                
+                                if (!launched) {
+                                  try {
+                                    launched = await launchUrl(
+                                      url,
+                                      mode: LaunchMode.inAppWebView,
+                                    );
+                                  } catch (e) {
+                                    launched = false;
+                                  }
+                                }
+                                
+                                if (!launched) {
+                                  throw Exception('Could not open webpage');
+                                }
+                                
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Could not open privacy policy automatically. Please visit en.digihappy.fi/palveluehdot#memory-game-privacy in your browser.'),
+                                      backgroundColor: Colors.orange,
+                                      duration: Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
+                              }
                             },
                           ),
                         ],
@@ -216,7 +250,7 @@ class GuidePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFe7eaf6), // Consistent background color
+      backgroundColor: const Color(0xFFe7eaf6),
       body: Container(
         child: SafeArea(
           child: Stack(
@@ -227,21 +261,10 @@ class GuidePage extends StatelessWidget {
                 right: 16,
                 child: GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF9DA2CD),
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      size: 24,
-                      color: Color(0xFF4E4A73),
-                    ),
+                  child: const Image(
+                    image: AssetImage('lib/icons/close.png'),
+                    width: 32,
+                    height: 32,
                   ),
                 ),
               ),
@@ -466,18 +489,10 @@ class _PurchasePageState extends State<PurchasePage> {
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF9DA2CD),
-                      width: 2,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 24,
-                    color: Color(0xFF4E4A73),
+                  child: const Image(
+                    image: AssetImage('lib/icons/close.png'),
+                    width: 24,
+                    height: 24,
                   ),
                 ),
               ),
@@ -680,21 +695,10 @@ class PlaceholderPage extends StatelessWidget {
                   right: 16,
                   child: GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF9DA2CD),
-                          width: 2,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 24,
-                        color: Color(0xFF4E4A73),
-                      ),
+                    child: const Image(
+                      image: AssetImage('lib/icons/close.png'),
+                      width: 32,
+                      height: 32,
                     ),
                   ),
                 ),
@@ -743,7 +747,7 @@ class PlaceholderPage extends StatelessWidget {
                               const SizedBox(height: 32),
                               _buildSection('7. Misuse', 'You agree not to use the app in any unlawful or harmful way, or attempt to reverse-engineer or copy its content.'),
                               const SizedBox(height: 32),
-                              _buildSection('8. Contact', 'If you have any questions about these Terms or the app, please contact us at:\n\nhappygames@digihappy.fi \n\nhttps://digihappy.fi \n\n© 2025 Digihappy Oy. All rights reserved. \n\nDeveloped in Finland by Digihappy Oy. Lead developer Rene Saarikko.'),
+                              _buildSection('8. Contact', 'If you have any questions about these Terms or the app, please contact us at:\n\nhappygames@digihappy.fi \n\nhttps://digihappy.fi \n\n© 2025 Digihappy Oy. All rights reserved. \n\nDeveloped in Finland by Digihappy Oy. Lead Designer Johanna Yoshimura. Lead developer Rene Saarikko.'),
                             ],
                           ),
                         ),
