@@ -348,7 +348,7 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
                   children: [
                     // Left side: Clock and back button
                     Container(
-                      width: 120, // Fixed width for clock area
+                      width: 120,
                       color: const Color(0xFFe7eaf6),
                       child: Stack(
                         children: [
@@ -374,6 +374,8 @@ class _CardMatchingGameState extends State<CardMatchingGame> {
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.visible, 
                             ),
                           ),
                         ],
